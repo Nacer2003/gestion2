@@ -145,14 +145,23 @@ export const PresencesPage: React.FC = () => {
     const doc = new jsPDF();
     
     // Titre
-    doc.setFontSize(20);
-    doc.text('Rapport de Présences', 20, 20);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RAPPORT DE PRESENCES', 105, 20, { align: 'center' });
+    
+    // Ligne de séparation
+    doc.setLineWidth(0.5);
+    doc.line(20, 25, 190, 25);
     
     // Informations du rapport
-    doc.setFontSize(12);
-    doc.text(`Date: ${selectedDate ? new Date(selectedDate).toLocaleDateString('fr-FR') : 'Toutes les dates'}`, 20, 35);
-    doc.text(`Utilisateur: ${selectedUser ? users.find(u => u.id === selectedUser)?.email || 'Inconnu' : 'Tous les utilisateurs'}`, 20, 45);
-    doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 20, 55);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Période: ${selectedDate ? new Date(selectedDate).toLocaleDateString('fr-FR') : 'Toutes les dates'}`, 20, 35);
+    doc.text(`Employé: ${selectedUser ? users.find(u => u.id === selectedUser)?.email || 'Inconnu' : 'Tous les employés'}`, 20, 42);
+    doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 20, 49);
+    
+    // Nombre total d'enregistrements
+    doc.text(`Nombre d'enregistrements: ${presences.length}`, 20, 56);
     
     // Données du tableau
     const tableData = presences.map(presence => {
@@ -165,59 +174,94 @@ export const PresencesPage: React.FC = () => {
         presence.magasin_nom || 'Magasin inconnu',
         presence.heure_entree?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) || '-',
         presence.heure_sortie?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) || '-',
-        presence.pause_entree?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) || '-',
-        presence.duree_pause ? `${Math.floor(presence.duree_pause / 60)}h${(presence.duree_pause % 60).toString().padStart(2, '0')}` : '-',
+        presence.duree_pause ? `${presence.duree_pause}min` : '-',
         tempsTrail || '-'
       ];
     });
 
     // Configuration du tableau
     (doc as any).autoTable({
-      head: [['Date', 'Employé', 'Magasin', 'Arrivée', 'Départ', 'Début Pause', 'Durée Pause', 'Temps Travail']],
+      head: [['Date', 'Employé', 'Magasin', 'Arrivée', 'Départ', 'Durée Pause', 'Temps Travail']],
       body: tableData,
-      startY: 70,
+      startY: 65,
       styles: {
-        fontSize: 8,
-        cellPadding: 3,
+        fontSize: 9,
+        cellPadding: 4,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
       },
       headStyles: {
         fillColor: [59, 130, 246],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 10,
+        halign: 'center'
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
       },
+      bodyStyles: {
+        halign: 'center'
+      },
       columnStyles: {
-        0: { cellWidth: 20 }, // Date
-        1: { cellWidth: 35 }, // Employé
-        2: { cellWidth: 30 }, // Magasin
-        3: { cellWidth: 20 }, // Arrivée
-        4: { cellWidth: 20 }, // Départ
-        5: { cellWidth: 20 }, // Début Pause
-        6: { cellWidth: 20 }, // Durée Pause
-        7: { cellWidth: 25 }  // Temps Travail
+        0: { cellWidth: 25, halign: 'center' }, // Date
+        1: { cellWidth: 40, halign: 'left' }, // Employé
+        2: { cellWidth: 30, halign: 'left' }, // Magasin
+        3: { cellWidth: 20, halign: 'center' }, // Arrivée
+        4: { cellWidth: 20, halign: 'center' }, // Départ
+        5: { cellWidth: 25, halign: 'center' }, // Durée Pause
+        6: { cellWidth: 25, halign: 'center' }  // Temps Travail
+      },
+      margin: { top: 65, left: 15, right: 15 },
+      tableWidth: 'auto',
+      theme: 'striped',
+      didDrawPage: function (data: any) {
+        // Pied de page
+        const pageCount = doc.internal.getNumberOfPages();
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text(`Page ${data.pageNumber} sur ${pageCount}`, 105, pageHeight - 10, { align: 'center' });
+        doc.text('StockPro - Système de gestion de présences', 105, pageHeight - 5, { align: 'center' });
       }
     });
 
     // Statistiques en bas
     const finalY = (doc as any).lastAutoTable.finalY + 20;
-    doc.setFontSize(14);
-    doc.text('Statistiques:', 20, finalY);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('STATISTIQUES DE LA PÉRIODE', 20, finalY);
     
-    doc.setFontSize(10);
+    // Ligne de séparation
+    doc.setLineWidth(0.3);
+    doc.line(20, finalY + 3, 100, finalY + 3);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
     const employesPresents = new Set(presences.map(p => p.user_id)).size;
     const arrivees = presences.filter(p => p.heure_entree).length;
     const departs = presences.filter(p => p.heure_sortie).length;
     const pauses = presences.filter(p => p.pause_entree).length;
+    const tempsTotal = presences.reduce((total, p) => {
+      const temps = calculateWorkTime(p);
+      if (temps) {
+        const [heures, minutes] = temps.split('h');
+        return total + (parseInt(heures) * 60) + parseInt(minutes || '0');
+      }
+      return total;
+    }, 0);
     
-    doc.text(`• Employés présents: ${employesPresents}`, 20, finalY + 15);
-    doc.text(`• Arrivées enregistrées: ${arrivees}`, 20, finalY + 25);
-    doc.text(`• Départs enregistrés: ${departs}`, 20, finalY + 35);
-    doc.text(`• Pauses prises: ${pauses}`, 20, finalY + 45);
+    doc.text(`• Nombre d'employés présents: ${employesPresents}`, 20, finalY + 12);
+    doc.text(`• Arrivées enregistrées: ${arrivees}`, 20, finalY + 20);
+    doc.text(`• Départs enregistrés: ${departs}`, 20, finalY + 28);
+    doc.text(`• Pauses prises: ${pauses}`, 20, finalY + 36);
+    doc.text(`• Temps total travaillé: ${Math.floor(tempsTotal / 60)}h${(tempsTotal % 60).toString().padStart(2, '0')}`, 20, finalY + 44);
 
     // Sauvegarder le PDF
-    doc.save(`rapport_presences_${selectedDate}.pdf`);
+    const fileName = `rapport_presences_${selectedDate || 'toutes_dates'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
     toast.success('Rapport PDF généré avec succès');
   };
 

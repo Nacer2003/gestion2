@@ -76,7 +76,7 @@ export const NotificationWidget: React.FC = () => {
           const magasin = normalizedMagasins.find((m: any) => m.id === mouvement.magasin_id);
           const userMouvement = normalizedUsers.find((u: any) => u.id === mouvement.user_id);
 
-          if (produit && magasin && userMouvement) {
+          if (produit && magasin && userMouvement && userMouvement.role === 'employe') {
             newNotifications.push({
               id: mouvement.id.toString(),
               type: 'stock_movement',

@@ -24,6 +24,12 @@ export const useGeolocation = () => {
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          console.log('Position GPS obtenue:', {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+          
           setLoading(false);
           resolve({
             latitude: position.coords.latitude,
@@ -31,6 +37,7 @@ export const useGeolocation = () => {
           });
         },
         (error) => {
+          console.error('Erreur géolocalisation:', error);
           setLoading(false);
           let errorMsg = 'Erreur de géolocalisation';
           
@@ -51,8 +58,8 @@ export const useGeolocation = () => {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
+          timeout: 15000,
+          maximumAge: 0
         }
       );
     });

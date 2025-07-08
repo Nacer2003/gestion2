@@ -19,7 +19,14 @@ class PresenceSerializer(serializers.ModelSerializer):
         return str(obj.magasin.id) if obj.magasin else None
     
     def create(self, validated_data):
+        # S'assurer que l'utilisateur est défini
         validated_data['user'] = self.context['request'].user
+        
+        # S'assurer que le nom du magasin est défini
         if 'magasin_nom' not in validated_data and validated_data.get('magasin'):
             validated_data['magasin_nom'] = validated_data['magasin'].nom
+        
+        # Log pour debug
+        print(f"Création présence avec données: {validated_data}")
+        
         return super().create(validated_data)

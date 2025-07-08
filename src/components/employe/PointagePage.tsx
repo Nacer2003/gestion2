@@ -159,7 +159,8 @@ export const PointagePage: React.FC = () => {
 
       if (type === 'arrivee') {
         // Nouveau pointage d'arrivée
-        await attendanceService.createAttendance({
+        console.log('Création nouveau pointage d\'arrivée');
+        const pointageData = {
           magasin: magasin.id,
           magasin_nom: magasin.nom,
           date_pointage: now.toISOString(),
@@ -167,10 +168,18 @@ export const PointagePage: React.FC = () => {
           latitude: position.latitude,
           longitude: position.longitude,
           type: 'arrivee'
-        });
+        };
+        
+        console.log('Données pointage:', pointageData);
+        
+        const result = await attendanceService.createAttendance(pointageData);
+        console.log('Résultat création:', result);
+        
         toast.success('Arrivée enregistrée avec succès !');
       } else if (todayPresence) {
         // Mise à jour du pointage existant
+        console.log('Mise à jour pointage existant:', todayPresence.id);
+        
         const updateData: any = {};
         
         if (type === 'depart') {
@@ -190,6 +199,7 @@ export const PointagePage: React.FC = () => {
           }
         }
 
+        console.log('Données mise à jour:', updateData);
         await attendanceService.updateAttendance(todayPresence.id, updateData);
         
         const messages = {
@@ -201,9 +211,13 @@ export const PointagePage: React.FC = () => {
         toast.success(messages[type]);
       }
 
-      fetchData(); // Recharger les données
+      // Recharger les données après un délai pour laisser le temps au serveur
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
 
     } catch (error) {
+      console.error('Erreur pointage:', error);
       toast.error('Erreur lors du pointage. Vérifiez que la géolocalisation est activée.');
     } finally {
       setPointageLoading(false);

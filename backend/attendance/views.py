@@ -24,11 +24,14 @@ class PresenceListCreateView(generics.ListCreateAPIView):
     
     def create(self, request, *args, **kwargs):
         try:
-            logger.info(f"Création de présence")
+            logger.info(f"Création de présence pour utilisateur {request.user.id}")
+            logger.info(f"Données reçues: {request.data}")
+            
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             presence = serializer.save()
-            logger.info(f"Présence créée avec succès")
+            
+            logger.info(f"Présence créée avec succès: ID={presence.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f"Erreur lors de la création de la présence: {str(e)}")

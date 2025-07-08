@@ -80,6 +80,8 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         
+        console.log('Position obtenue:', { lat, lng });
+        
         setMapPosition([lat, lng]);
         onPositionChange(lat, lng);
         
@@ -88,6 +90,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
           fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
             .then(response => response.json())
             .then(data => {
+              console.log('Adresse obtenue:', data);
               if (data.display_name) {
                 onAddressChange(data.display_name);
               }
@@ -98,6 +101,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
         setIsGettingLocation(false);
       },
       (error) => {
+        console.error('Erreur géolocalisation:', error);
         let errorMessage = 'Erreur de géolocalisation';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -115,8 +119,8 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
+        timeout: 15000,
+        maximumAge: 0
       }
     );
   };
