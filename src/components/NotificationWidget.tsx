@@ -76,7 +76,8 @@ export const NotificationWidget: React.FC = () => {
           const magasin = normalizedMagasins.find((m: any) => m.id === mouvement.magasin_id);
           const userMouvement = normalizedUsers.find((u: any) => u.id === mouvement.user_id);
 
-          if (produit && magasin && userMouvement && userMouvement.role === 'employe') {
+          // Afficher les mouvements de tous les utilisateurs (admin et employés)
+          if (produit && magasin && userMouvement) {
             newNotifications.push({
               id: mouvement.id.toString(),
               type: 'stock_movement',

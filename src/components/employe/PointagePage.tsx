@@ -28,19 +28,27 @@ export const PointagePage: React.FC = () => {
     if (!user?.magasin_id) return;
 
     try {
+      console.log('=== FETCH DATA POINTAGE ===');
+      console.log('User magasin_id:', user.magasin_id);
+      
       // Récupérer le magasin
       const magasinsData = await storesService.getStores();
       const userMagasin = magasinsData.find((m: any) => m.id.toString() === user.magasin_id);
       
       if (userMagasin) {
+        console.log('Magasin trouvé:', userMagasin.nom);
         setMagasin({
           ...userMagasin,
           createdAt: new Date(userMagasin.created_at)
         });
+      } else {
+        console.error('Magasin non trouvé pour ID:', user.magasin_id);
       }
 
       // Récupérer l'historique des présences
       const presencesData = await attendanceService.getAttendance();
+      console.log('Présences reçues:', presencesData);
+      
       const userPresences = presencesData
         .filter((p: any) => p.user.toString() === user.id)
         .map((item: any) => ({
@@ -53,6 +61,7 @@ export const PointagePage: React.FC = () => {
         }))
         .sort((a: any, b: any) => b.date_pointage.getTime() - a.date_pointage.getTime()) as Presence[];
 
+      console.log('Présences utilisateur filtrées:', userPresences.length);
       setPresences(userPresences);
 
       // Vérifier le statut actuel
@@ -63,6 +72,7 @@ export const PointagePage: React.FC = () => {
       });
 
       setTodayPresence(todayPresenceData || null);
+      console.log('Présence du jour:', todayPresenceData);
 
       // Déterminer le statut actuel
       if (todayPresenceData) {
@@ -76,6 +86,8 @@ export const PointagePage: React.FC = () => {
       } else {
         setCurrentStatus('absent');
       }
+      
+      console.log('Statut actuel:', currentStatus);
 
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -102,6 +114,11 @@ export const PointagePage: React.FC = () => {
   const handlePointage = async (type: 'arrivee' | 'depart' | 'pause_entree' | 'pause_sortie') => {
     if (!user || !magasin) return;
 
+    console.log('=== DÉBUT POINTAGE ===');
+    console.log('Type:', type);
+    console.log('User:', user.email);
+    console.log('Magasin:', magasin.nom);
+    
     // Vérifications des conditions
     if (type === 'arrivee' && todayPresence) {
       toast.error('Vous avez déjà pointé votre arrivée aujourd\'hui');
@@ -141,7 +158,10 @@ export const PointagePage: React.FC = () => {
     setPointageLoading(true);
 
     try {
+      console.log('Obtention position GPS...');
       const position = await getCurrentPosition();
+      console.log('Position obtenue:', position);
+      
       const distance = calculateDistance(
         position.latitude,
         position.longitude,
@@ -150,6 +170,8 @@ export const PointagePage: React.FC = () => {
       );
 
       const allowedRadius = getGpsRadius();
+      console.log('Distance calculée:', distance, 'Rayon autorisé:', allowedRadius);
+      
       if (distance > allowedRadius) {
         toast.error(`Vous êtes trop loin du magasin (${Math.round(distance)}m). Vous devez être dans un rayon de ${allowedRadius}m.`);
         return;
@@ -159,7 +181,6 @@ export const PointagePage: React.FC = () => {
 
       if (type === 'arrivee') {
         // Nouveau pointage d'arrivée
-        console.log('Création nouveau pointage d\'arrivée');
         const pointageData = {
           magasin: magasin.id,
           magasin_nom: magasin.nom,
@@ -170,15 +191,17 @@ export const PointagePage: React.FC = () => {
           type: 'arrivee'
         };
         
-        console.log('Données pointage:', pointageData);
+        console.log('=== CRÉATION POINTAGE ARRIVÉE ===');
+        console.log('Données:', pointageData);
         
         const result = await attendanceService.createAttendance(pointageData);
-        console.log('Résultat création:', result);
+        console.log('✅ Pointage créé:', result);
         
         toast.success('Arrivée enregistrée avec succès !');
       } else if (todayPresence) {
         // Mise à jour du pointage existant
-        console.log('Mise à jour pointage existant:', todayPresence.id);
+        console.log('=== MISE À JOUR POINTAGE ===');
+        console.log('ID présence:', todayPresence.id);
         
         const updateData: any = {};
         
@@ -201,6 +224,7 @@ export const PointagePage: React.FC = () => {
 
         console.log('Données mise à jour:', updateData);
         await attendanceService.updateAttendance(todayPresence.id, updateData);
+        console.log('✅ Pointage mis à jour');
         
         const messages = {
           depart: 'Départ enregistré avec succès !',
@@ -211,13 +235,14 @@ export const PointagePage: React.FC = () => {
         toast.success(messages[type]);
       }
 
-      // Recharger les données après un délai pour laisser le temps au serveur
+      // Recharger les données après un délai
+      console.log('Rechargement des données...');
       setTimeout(() => {
         fetchData();
-      }, 1000);
+      }, 1500);
 
     } catch (error) {
-      console.error('Erreur pointage:', error);
+      console.error('❌ Erreur pointage:', error);
       toast.error('Erreur lors du pointage. Vérifiez que la géolocalisation est activée.');
     } finally {
       setPointageLoading(false);

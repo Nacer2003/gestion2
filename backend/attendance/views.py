@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
+from django.db import transaction
 from .models import Presence
 from .serializers import PresenceSerializer
 import logging
@@ -22,19 +23,31 @@ class PresenceListCreateView(generics.ListCreateAPIView):
         else:
             return Presence.objects.filter(user=user)
     
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         try:
-            logger.info(f"Création de présence pour utilisateur {request.user.id}")
-            logger.info(f"Données reçues: {request.data}")
+            print(f"=== CRÉATION PRÉSENCE ===")
+            print(f"Utilisateur: {request.user.id} ({request.user.email})")
+            print(f"Données reçues: {request.data}")
+            
+            # Vérifier que l'utilisateur a un magasin assigné
+            if not request.user.magasin_id:
+                return Response({
+                    'error': 'Utilisateur non assigné à un magasin'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Préparer les données avec l'utilisateur
+            data = request.data.copy()
             
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             presence = serializer.save()
             
-            logger.info(f"Présence créée avec succès: ID={presence.id}")
+            print(f"✅ Présence créée: ID={presence.id}, User={presence.user.email}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
         except Exception as e:
-            logger.error(f"Erreur lors de la création de la présence: {str(e)}")
+            print(f"❌ Erreur création présence: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class PresenceDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -48,15 +61,21 @@ class PresenceDetailView(generics.RetrieveUpdateDestroyAPIView):
         else:
             return Presence.objects.filter(user=user)
     
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         try:
+            print(f"=== MISE À JOUR PRÉSENCE ===")
+            print(f"Données reçues: {request.data}")
+            
             partial = kwargs.pop('partial', False)
             instance = self.get_object()
             serializer = self.get_serializer(instance, data=request.data, partial=partial)
             serializer.is_valid(raise_exception=True)
             presence = serializer.save()
-            logger.info(f"Présence modifiée avec succès")
+            
+            print(f"✅ Présence mise à jour: ID={presence.id}")
             return Response(serializer.data)
+            
         except Exception as e:
-            logger.error(f"Erreur lors de la modification de la présence: {str(e)}")
+            print(f"❌ Erreur mise à jour présence: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

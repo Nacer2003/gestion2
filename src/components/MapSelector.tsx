@@ -75,12 +75,19 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
       return;
     }
 
+    console.log('=== DEMANDE GÉOLOCALISATION ===');
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         
-        console.log('Position obtenue:', { lat, lng });
+        console.log('✅ Position GPS obtenue:', { 
+          lat, 
+          lng, 
+          accuracy: position.coords.accuracy,
+          timestamp: new Date(position.timestamp).toLocaleString()
+        });
         
         setMapPosition([lat, lng]);
         onPositionChange(lat, lng);
@@ -90,7 +97,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
           fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
             .then(response => response.json())
             .then(data => {
-              console.log('Adresse obtenue:', data);
+              console.log('✅ Adresse géocodée:', data.display_name);
               if (data.display_name) {
                 onAddressChange(data.display_name);
               }
@@ -101,6 +108,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
         setIsGettingLocation(false);
       },
       (error) => {
+        console.error('❌ Erreur géolocalisation:', error);
         console.error('Erreur géolocalisation:', error);
         let errorMessage = 'Erreur de géolocalisation';
         switch (error.code) {
@@ -119,7 +127,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
       },
       {
         enableHighAccuracy: true,
-        timeout: 15000,
+        timeout: 20000,
         maximumAge: 0
       }
     );
@@ -133,11 +141,11 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
           type="button"
           onClick={getCurrentLocation}
           disabled={isGettingLocation}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center space-x-2"
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center space-x-2 font-medium"
         >
           <MapPin className="h-4 w-4" />
           <span>
-            {isGettingLocation ? 'Localisation en cours...' : 'Choisir ma place actuelle'}
+            {isGettingLocation ? 'Localisation en cours...' : 'Utiliser ma position actuelle'}
           </span>
         </button>
       </div>
@@ -165,7 +173,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
       </div>
 
       <p className="text-xs text-gray-500">
-        💡 Astuce: Cliquez sur "Choisir ma place actuelle" pour utiliser votre position GPS, ou cliquez directement sur la carte pour définir la position.
+        💡 Astuce: Cliquez sur "Utiliser ma position actuelle" pour utiliser votre GPS, ou cliquez directement sur la carte pour définir la position manuellement.
       </p>
     </div>
   );

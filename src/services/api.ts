@@ -510,42 +510,49 @@ export const stockService = {
 export const attendanceService = {
   getAttendance: async () => {
     try {
-      console.log('Récupération des présences...');
+      console.log('=== API: Récupération des présences ===');
       const response = await apiRequest(endpoints.attendance);
-      console.log('Présences API response:', response);
+      console.log('✅ Présences reçues:', response.length || 0, 'éléments');
       return normalizeApiResponse(response);
     } catch (error) {
-      console.error('Erreur lors de la récupération des présences:', error);
+      console.error('❌ Erreur récupération présences:', error);
       throw error;
     }
   },
   
   createAttendance: async (attendanceData: any) => {
     try {
-      console.log('Création de présence avec données:', attendanceData);
+      console.log('=== API: Création présence ===');
+      console.log('Données envoyées:', attendanceData);
+      
       const response = await apiRequest(endpoints.attendance, {
         method: 'POST',
         body: JSON.stringify(attendanceData),
       });
-      console.log('Présence créée:', response);
+      
+      console.log('✅ Présence créée via API:', response);
       return response;
     } catch (error) {
-      console.error('Erreur lors de la création de la présence:', error);
+      console.error('❌ Erreur création présence API:', error);
       throw error;
     }
   },
   
   updateAttendance: async (id: string, attendanceData: any) => {
     try {
-      console.log('Modification de présence avec données:', attendanceData);
+      console.log('=== API: Mise à jour présence ===');
+      console.log('ID:', id);
+      console.log('Données:', attendanceData);
+      
       const response = await apiRequest(`${endpoints.attendance}${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(attendanceData),
       });
-      console.log('Présence modifiée:', response);
+      
+      console.log('✅ Présence mise à jour via API:', response);
       return response;
     } catch (error) {
-      console.error('Erreur lors de la modification de la présence:', error);
+      console.error('❌ Erreur mise à jour présence API:', error);
       throw error;
     }
   },
