@@ -162,8 +162,33 @@ export const PointagePage: React.FC = () => {
 
     try {
       console.log('Obtention position GPS...');
-      const position = await getCurrentPosition();
-      console.log('Position obtenue:', position);
+      
+      // Obtenir la position GPS avec retry
+      let position;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          position = await getCurrentPosition();
+          console.log('✅ Position GPS obtenue:', position);
+          break;
+        } catch (error) {
+          retryCount++;
+          console.log(`❌ Tentative ${retryCount}/${maxRetries} échouée:`, error);
+          
+          if (retryCount === maxRetries) {
+            throw new Error('Impossible d\'obtenir votre position GPS. Vérifiez que la géolocalisation est activée et autorisée pour ce site.');
+          }
+          
+          // Attendre 2 secondes avant de réessayer
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      
+      if (!position) {
+        throw new Error('Position GPS non disponible');
+      }
       
       const distance = calculateDistance(
         position.latitude,
@@ -211,9 +236,25 @@ export const PointagePage: React.FC = () => {
         fetchData();
       }, 1000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur pointage:', error);
-      toast.error('Erreur lors du pointage. Vérifiez que la géolocalisation est activée.');
+      
+      // Messages d'erreur plus spécifiques
+      let errorMessage = 'Erreur lors du pointage';
+      
+      if (error.message?.includes('GPS') || error.message?.includes('géolocalisation')) {
+        errorMessage = error.message;
+      } else if (error.message?.includes('Permission denied')) {
+        errorMessage = 'Permission de géolocalisation refusée. Veuillez autoriser l\'accès à votre position.';
+      } else if (error.message?.includes('Position unavailable')) {
+        errorMessage = 'Position GPS non disponible. Vérifiez que le GPS est activé.';
+      } else if (error.message?.includes('Timeout')) {
+        errorMessage = 'Délai d\'attente dépassé pour obtenir votre position GPS.';
+      } else {
+        errorMessage = 'Erreur lors du pointage. Vérifiez votre connexion et réessayez.';
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setPointageLoading(false);
     }

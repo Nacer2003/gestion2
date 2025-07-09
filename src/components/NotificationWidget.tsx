@@ -64,17 +64,31 @@ export const NotificationWidget: React.FC = () => {
         setMagasins(normalizedMagasins.map((item: any) => ({ ...item, createdAt: new Date(item.created_at) })) as Magasin[]);
         setUsers(normalizedUsers.map((item: any) => ({ ...item, createdAt: new Date(item.date_joined || item.created_at) })) as User[]);
 
-        // Traiter les mouvements récents
+        // Traiter les mouvements récents (dernières 24h)
         const newNotifications: Notification[] = [];
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        
         const recentMovements = normalizedMouvements
           .map((item: any) => ({ ...item, date: new Date(item.date) }))
+          .filter((mouvement: any) => mouvement.date >= yesterday)
           .sort((a: any, b: any) => b.date.getTime() - a.date.getTime())
           .slice(0, 20);
 
+        console.log('Mouvements récents trouvés:', recentMovements.length);
+
         recentMovements.forEach((mouvement: any) => {
-          const produit = normalizedProduits.find((p: any) => p.id === mouvement.produit_id);
-          const magasin = normalizedMagasins.find((m: any) => m.id === mouvement.magasin_id);
-          const userMouvement = normalizedUsers.find((u: any) => u.id === mouvement.user_id);
+          const produit = normalizedProduits.find((p: any) => p.id.toString() === mouvement.produit_id?.toString());
+          const magasin = normalizedMagasins.find((m: any) => m.id.toString() === mouvement.magasin_id?.toString());
+          const userMouvement = normalizedUsers.find((u: any) => u.id.toString() === mouvement.user_id?.toString());
+
+          console.log('Mouvement:', {
+            produit: produit?.nom,
+            magasin: magasin?.nom,
+            user: userMouvement?.email,
+            type: mouvement.type,
+            quantite: mouvement.quantite
+          });
 
           // Afficher les mouvements de tous les utilisateurs (admin et employés)
           if (produit && magasin && userMouvement) {
@@ -85,11 +99,12 @@ export const NotificationWidget: React.FC = () => {
               message: `${mouvement.type === 'entrée' ? 'Entrée' : 'Sortie'} de ${mouvement.quantite} unités dans ${magasin.nom} (${mouvement.motif})`,
               timestamp: mouvement.date,
               read: false,
-              user_name: `${userMouvement.prenom} ${userMouvement.nom}`
+              user_name: `${userMouvement.prenom || ''} ${userMouvement.nom || ''}`.trim() || userMouvement.email
             });
           }
         });
 
+        console.log('Notifications créées:', newNotifications.length);
         setNotifications(newNotifications.slice(0, 10));
         setUnreadCount(newNotifications.length);
       } catch (error) {
@@ -99,8 +114,8 @@ export const NotificationWidget: React.FC = () => {
 
     fetchData();
 
-    // Polling pour les nouvelles notifications
-    const interval = setInterval(fetchData, 30000); // Toutes les 30 secondes
+    // Polling pour les nouvelles notifications toutes les 30 secondes
+    const interval = setInterval(fetchData, 30000);
 
     return () => clearInterval(interval);
   }, [user]);
@@ -210,7 +225,8 @@ export const NotificationWidget: React.FC = () => {
             ) : (
               <div className="p-8 text-center">
                 <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Aucune notification</p>
+                <p className="text-gray-500">Aucune notification récente</p>
+                <p className="text-xs text-gray-400 mt-1">Les mouvements de stock des dernières 24h apparaîtront ici</p>
               </div>
             )}
           </div>
