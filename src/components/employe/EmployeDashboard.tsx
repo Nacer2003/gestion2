@@ -17,7 +17,7 @@ export const EmployeDashboard: React.FC = () => {
   });
   const [pointageLoading, setPointageLoading] = useState(false);
   const [pointageMessage, setPointageMessage] = useState('');
-  const [lastPointage, setLastPointage] = useState<Presence | null>(null);
+  const [todayPresence, setTodayPresence] = useState<Presence | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,7 +37,7 @@ export const EmployeDashboard: React.FC = () => {
         // Récupérer les stocks du magasin
         const stocksData = await stockService.getStocks();
         const stocks = stocksData
-          .filter((stock: any) => stock.magasin.toString() === user.magasin_id)
+          .filter((stock: any) => stock.magasin_id?.toString() === user.magasin_id)
           .map((item: any) => ({
             ...item,
             updatedAt: new Date(item.updated_at)
@@ -52,7 +52,7 @@ export const EmployeDashboard: React.FC = () => {
 
         let produitsAlertes = 0;
         stocks.forEach(stock => {
-          const produit = produits.find(p => p.id === stock.produit_id);
+          const produit = produits.find(p => p.id.toString() === stock.produit_id.toString());
           if (produit && stock.quantite <= produit.seuil_alerte) {
             produitsAlertes++;
           }
@@ -63,23 +63,30 @@ export const EmployeDashboard: React.FC = () => {
           produitsAlertes
         });
 
-        // Récupérer le dernier pointage du jour
+        // Récupérer la présence du jour
         const presencesData = await attendanceService.getAttendance();
-        const presences = presencesData
-          .filter((p: any) => p.user.toString() === user.id)
+        const userPresences = presencesData
+          .filter((p: any) => p.user_id?.toString() === user.id?.toString())
           .map((item: any) => ({
             ...item,
-            date_pointage: new Date(item.date_pointage)
+            id: item.id?.toString(),
+            user_id: item.user_id?.toString(),
+            magasin_id: item.magasin_id?.toString(),
+            date_pointage: new Date(item.date_pointage),
+            heure_entree: item.heure_entree ? new Date(item.heure_entree) : null,
+            heure_sortie: item.heure_sortie ? new Date(item.heure_sortie) : null,
+            pause_entree: item.pause_entree ? new Date(item.pause_entree) : null,
+            pause_sortie: item.pause_sortie ? new Date(item.pause_sortie) : null
           })) as Presence[];
 
         const today = new Date();
-        const todayPresence = presences.find(p => {
+        const todayPresenceData = userPresences.find(p => {
           const pointageDate = p.date_pointage;
           return pointageDate.toDateString() === today.toDateString();
         });
 
-        if (todayPresence) {
-          setLastPointage(todayPresence);
+        if (todayPresenceData) {
+          setTodayPresence(todayPresenceData);
         }
 
       } catch (error) {
@@ -126,31 +133,42 @@ export const EmployeDashboard: React.FC = () => {
       }
 
       // Vérifier s'il y a déjà un pointage aujourd'hui
-      if (lastPointage) {
+      if (todayPresence?.heure_entree) {
         setPointageMessage('Vous avez déjà pointé aujourd\'hui.');
         return;
       }
 
-      await attendanceService.createAttendance({
+      const pointageData = {
         magasin: magasin.id,
         magasin_nom: magasin.nom,
         date_pointage: new Date().toISOString(),
         latitude: position.latitude,
         longitude: position.longitude,
         type: 'arrivee'
-      });
+      };
+
+      await attendanceService.createAttendance(pointageData);
 
       setPointageMessage('Pointage enregistré avec succès !');
-      setLastPointage({
-        id: '',
+      
+      // Mettre à jour la présence locale
+      const newPresence: Presence = {
+        id: Date.now().toString(),
         user_id: user.id,
         magasin_id: magasin.id,
         magasin_nom: magasin.nom,
         date_pointage: new Date(),
+        heure_entree: new Date(),
+        heure_sortie: null,
+        pause_entree: null,
+        pause_sortie: null,
+        duree_pause: null,
         latitude: position.latitude,
         longitude: position.longitude,
         type: 'arrivee'
-      });
+      };
+      
+      setTodayPresence(newPresence);
 
     } catch (error) {
       setPointageMessage('Erreur lors du pointage. Vérifiez que la géolocalisation est activée.');
@@ -173,7 +191,7 @@ export const EmployeDashboard: React.FC = () => {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard Employé</h1>
-        <p className="text-gray-600 mt-2">Bienvenue, {user?.email}</p>
+        <p className="text-gray-600 mt-2">Bienvenue, {user?.prenom} {user?.nom}</p>
       </div>
 
       {/* Cartes de statistiques */}
@@ -222,17 +240,22 @@ export const EmployeDashboard: React.FC = () => {
           <Clock className="h-6 w-6 text-gray-400" />
         </div>
 
-        {lastPointage ? (
+        {todayPresence?.heure_entree ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <p className="text-green-800 font-medium">Pointage effectué aujourd'hui</p>
             <p className="text-green-600 text-sm">
-              {lastPointage.date_pointage.toLocaleString('fr-FR')}
+              Arrivée: {todayPresence.heure_entree.toLocaleString('fr-FR')}
             </p>
+            {todayPresence.heure_sortie && (
+              <p className="text-green-600 text-sm">
+                Départ: {todayPresence.heure_sortie.toLocaleString('fr-FR')}
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-gray-600">
-              Vous pouvez pointer votre arrivée. Assurez-vous d'être dans un rayon de 100m du magasin.
+              Vous pouvez pointer votre arrivée. Assurez-vous d'être dans un rayon de {getGpsRadius()}m du magasin.
             </p>
             <button
               onClick={handlePointage}

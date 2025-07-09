@@ -4,7 +4,7 @@ import { attendanceService, authService, storesService } from '../../services/ap
 import { normalizeApiResponse } from '../../config/api';
 import { Presence, User as UserType, Magasin } from '../../types';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
 
 export const PresencesPage: React.FC = () => {
@@ -44,6 +44,9 @@ export const PresencesPage: React.FC = () => {
       const normalizedData = normalizeApiResponse(data);
       let presencesData = normalizedData.map((item: any) => ({
         ...item,
+        id: item.id?.toString(),
+        user_id: item.user_id?.toString(),
+        magasin_id: item.magasin_id?.toString(),
         date_pointage: new Date(item.date_pointage),
         heure_entree: item.heure_entree ? new Date(item.heure_entree) : null,
         heure_sortie: item.heure_sortie ? new Date(item.heure_sortie) : null,
@@ -144,24 +147,47 @@ export const PresencesPage: React.FC = () => {
   const exportToPDF = () => {
     const doc = new jsPDF();
     
-    // Titre
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RAPPORT DE PRÉSENCES', 105, 25, { align: 'center' });
+    // Configuration des couleurs
+    const primaryColor = [59, 130, 246]; // Bleu
+    const secondaryColor = [107, 114, 128]; // Gris
+    const accentColor = [16, 185, 129]; // Vert
     
-    // Ligne de séparation
-    doc.setLineWidth(0.5);
-    doc.line(20, 30, 190, 30);
+    // En-tête avec logo et titre
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 35, 'F');
+    
+    // Titre principal
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('STOCKPRO', 20, 15);
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'normal');
+    doc.text('RAPPORT DE PRÉSENCES', 20, 25);
     
     // Informations du rapport
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Période: ${selectedDate ? new Date(selectedDate).toLocaleDateString('fr-FR') : 'Toutes les dates'}`, 20, 40);
-    doc.text(`Employé: ${selectedUser ? users.find(u => u.id === selectedUser)?.email || 'Inconnu' : 'Tous les employés'}`, 20, 47);
-    doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 20, 54);
     
-    // Nombre total d'enregistrements
-    doc.text(`Nombre d'enregistrements: ${presences.length}`, 20, 61);
+    const reportInfo = [
+      `Période: ${selectedDate ? new Date(selectedDate).toLocaleDateString('fr-FR') : 'Toutes les dates'}`,
+      `Employé: ${selectedUser ? users.find(u => u.id === selectedUser)?.email || 'Inconnu' : 'Tous les employés'}`,
+      `Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+      `Nombre d'enregistrements: ${presences.length}`
+    ];
+    
+    let yPos = 45;
+    reportInfo.forEach(info => {
+      doc.text(info, 20, yPos);
+      yPos += 7;
+    });
+    
+    // Ligne de séparation
+    doc.setDrawColor(...secondaryColor);
+    doc.setLineWidth(0.5);
+    doc.line(20, yPos + 5, 190, yPos + 5);
     
     // Données du tableau
     const tableData = presences.map(presence => {
@@ -179,20 +205,21 @@ export const PresencesPage: React.FC = () => {
       ];
     });
 
-    // Configuration du tableau
-    (doc as any).autoTable({
-      head: [['Date', 'Employé', 'Magasin', 'Arrivée', 'Départ', 'Pause (min)', 'Temps Travail']],
+    // Configuration du tableau avec autoTable
+    autoTable(doc, {
+      head: [['Date', 'Employé', 'Magasin', 'Arrivée', 'Départ', 'Pause', 'Temps Travail']],
       body: tableData,
-      startY: 70,
+      startY: yPos + 15,
       styles: {
-        fontSize: 10,
-        cellPadding: 5,
+        fontSize: 9,
+        cellPadding: 4,
         lineColor: [200, 200, 200],
         lineWidth: 0.1,
+        textColor: [51, 51, 51],
       },
       headStyles: {
-        fillColor: [59, 130, 246],
-        textColor: 255,
+        fillColor: primaryColor,
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
         fontSize: 10,
         halign: 'center'
@@ -204,16 +231,15 @@ export const PresencesPage: React.FC = () => {
         halign: 'center'
       },
       columnStyles: {
-        0: { cellWidth: 28, halign: 'center' }, // Date
-        1: { cellWidth: 45, halign: 'left' }, // Employé
-        2: { cellWidth: 35, halign: 'left' }, // Magasin
-        3: { cellWidth: 22, halign: 'center' }, // Arrivée
-        4: { cellWidth: 22, halign: 'center' }, // Départ
-        5: { cellWidth: 25, halign: 'center' }, // Pause
-        6: { cellWidth: 28, halign: 'center' }  // Temps Travail
+        0: { cellWidth: 25, halign: 'center' }, // Date
+        1: { cellWidth: 40, halign: 'left' },   // Employé
+        2: { cellWidth: 35, halign: 'left' },   // Magasin
+        3: { cellWidth: 20, halign: 'center' }, // Arrivée
+        4: { cellWidth: 20, halign: 'center' }, // Départ
+        5: { cellWidth: 20, halign: 'center' }, // Pause
+        6: { cellWidth: 25, halign: 'center' }  // Temps Travail
       },
-      margin: { top: 70, left: 10, right: 10 },
-      tableWidth: 'auto',
+      margin: { top: 15, left: 15, right: 15 },
       theme: 'striped',
       didDrawPage: function (data: any) {
         // Pied de page
@@ -221,25 +247,32 @@ export const PresencesPage: React.FC = () => {
         const pageSize = doc.internal.pageSize;
         const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
         
+        // Ligne de pied de page
+        doc.setDrawColor(...secondaryColor);
+        doc.setLineWidth(0.3);
+        doc.line(20, pageHeight - 20, 190, pageHeight - 20);
+        
+        // Texte du pied de page
         doc.setFontSize(8);
-        doc.setFont('helvetica', 'italic');
-        doc.text(`Page ${data.pageNumber} sur ${pageCount}`, 105, pageHeight - 10, { align: 'center' });
-        doc.text('StockPro - Rapport de présences généré automatiquement', 105, pageHeight - 5, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...secondaryColor);
+        doc.text(`Page ${data.pageNumber} sur ${pageCount}`, 105, pageHeight - 12, { align: 'center' });
+        doc.text('StockPro - Système de gestion des présences', 105, pageHeight - 7, { align: 'center' });
       }
     });
 
     // Statistiques en bas
     const finalY = (doc as any).lastAutoTable.finalY + 20;
-    doc.setFontSize(14);
+    
+    // Titre des statistiques
+    doc.setFillColor(...accentColor);
+    doc.rect(20, finalY, 170, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('RÉSUMÉ STATISTIQUE', 20, finalY);
+    doc.text('RÉSUMÉ STATISTIQUE', 25, finalY + 6);
     
-    // Ligne de séparation
-    doc.setLineWidth(0.3);
-    doc.line(20, finalY + 3, 120, finalY + 3);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    // Calculs statistiques
     const employesPresents = new Set(presences.map(p => p.user_id)).size;
     const arrivees = presences.filter(p => p.heure_entree).length;
     const departs = presences.filter(p => p.heure_sortie).length;
@@ -253,14 +286,29 @@ export const PresencesPage: React.FC = () => {
       return total;
     }, 0);
     
-    // Statistiques en deux colonnes
-    doc.text(`• Employés présents: ${employesPresents}`, 20, finalY + 15);
-    doc.text(`• Arrivées: ${arrivees}`, 20, finalY + 25);
-    doc.text(`• Départs: ${departs}`, 20, finalY + 35);
+    // Affichage des statistiques en colonnes
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
     
-    doc.text(`• Pauses prises: ${pauses}`, 110, finalY + 15);
-    doc.text(`• Temps total: ${Math.floor(tempsTotal / 60)}h${(tempsTotal % 60).toString().padStart(2, '0')}`, 110, finalY + 25);
-    doc.text(`• Moyenne/employé: ${employesPresents > 0 ? Math.round(tempsTotal / employesPresents) : 0}min`, 110, finalY + 35);
+    const statsY = finalY + 15;
+    const stats = [
+      [`Employés présents: ${employesPresents}`, `Temps total travaillé: ${Math.floor(tempsTotal / 60)}h${(tempsTotal % 60).toString().padStart(2, '0')}`],
+      [`Pointages d'arrivée: ${arrivees}`, `Moyenne par employé: ${employesPresents > 0 ? Math.round(tempsTotal / employesPresents) : 0} min`],
+      [`Pointages de départ: ${departs}`, `Taux de présence: ${employesPresents > 0 ? Math.round((arrivees / employesPresents) * 100) : 0}%`],
+      [`Pauses prises: ${pauses}`, `Efficacité: ${departs === arrivees ? '100%' : Math.round((departs / arrivees) * 100) + '%'}`]
+    ];
+    
+    stats.forEach((row, index) => {
+      const y = statsY + (index * 7);
+      doc.text(`• ${row[0]}`, 25, y);
+      doc.text(`• ${row[1]}`, 115, y);
+    });
+    
+    // Encadré final
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(1);
+    doc.rect(20, finalY, 170, stats.length * 7 + 20, 'S');
 
     // Sauvegarder le PDF
     const dateStr = selectedDate || new Date().toISOString().split('T')[0];

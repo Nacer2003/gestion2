@@ -50,9 +50,12 @@ export const PointagePage: React.FC = () => {
       console.log('Présences reçues:', presencesData);
       
       const userPresences = presencesData
-        .filter((p: any) => p.user.toString() === user.id)
+        .filter((p: any) => p.user_id?.toString() === user.id?.toString())
         .map((item: any) => ({
           ...item,
+          id: item.id?.toString(),
+          user_id: item.user_id?.toString(),
+          magasin_id: item.magasin_id?.toString(),
           date_pointage: new Date(item.date_pointage),
           heure_entree: item.heure_entree ? new Date(item.heure_entree) : null,
           heure_sortie: item.heure_sortie ? new Date(item.heure_sortie) : null,
@@ -120,7 +123,7 @@ export const PointagePage: React.FC = () => {
     console.log('Magasin:', magasin.nom);
     
     // Vérifications des conditions
-    if (type === 'arrivee' && todayPresence) {
+    if (type === 'arrivee' && todayPresence?.heure_entree) {
       toast.error('Vous avez déjà pointé votre arrivée aujourd\'hui');
       return;
     }
@@ -178,68 +181,35 @@ export const PointagePage: React.FC = () => {
       }
 
       const now = new Date();
-
-      if (type === 'arrivee') {
-        // Nouveau pointage d'arrivée
-        const pointageData = {
-          magasin: magasin.id,
-          magasin_nom: magasin.nom,
-          date_pointage: now.toISOString(),
-          heure_entree: now.toISOString(),
-          latitude: position.latitude,
-          longitude: position.longitude,
-          type: 'arrivee'
-        };
-        
-        console.log('=== CRÉATION POINTAGE ARRIVÉE ===');
-        console.log('Données:', pointageData);
-        
-        const result = await attendanceService.createAttendance(pointageData);
-        console.log('✅ Pointage créé:', result);
-        
-        toast.success('Arrivée enregistrée avec succès !');
-      } else if (todayPresence) {
-        // Mise à jour du pointage existant
-        console.log('=== MISE À JOUR POINTAGE ===');
-        console.log('ID présence:', todayPresence.id);
-        
-        const updateData: any = {};
-        
-        if (type === 'depart') {
-          updateData.heure_sortie = now.toISOString();
-          updateData.type = 'depart';
-        } else if (type === 'pause_entree') {
-          updateData.pause_entree = now.toISOString();
-          updateData.type = 'pause_entree';
-        } else if (type === 'pause_sortie') {
-          updateData.pause_sortie = now.toISOString();
-          updateData.type = 'pause_sortie';
-          
-          // Calculer la durée de pause
-          if (todayPresence.pause_entree) {
-            const pauseDuration = Math.floor((now.getTime() - todayPresence.pause_entree.getTime()) / (1000 * 60));
-            updateData.duree_pause = pauseDuration;
-          }
-        }
-
-        console.log('Données mise à jour:', updateData);
-        await attendanceService.updateAttendance(todayPresence.id, updateData);
-        console.log('✅ Pointage mis à jour');
-        
-        const messages = {
-          depart: 'Départ enregistré avec succès !',
-          pause_entree: 'Début de pause enregistré !',
-          pause_sortie: 'Fin de pause enregistrée !'
-        };
-        
-        toast.success(messages[type]);
-      }
+      const pointageData = {
+        magasin: magasin.id,
+        magasin_nom: magasin.nom,
+        date_pointage: now.toISOString(),
+        latitude: position.latitude,
+        longitude: position.longitude,
+        type: type
+      };
+      
+      console.log('=== ENVOI POINTAGE ===');
+      console.log('Données:', pointageData);
+      
+      const result = await attendanceService.createAttendance(pointageData);
+      console.log('✅ Pointage enregistré:', result);
+      
+      const messages = {
+        arrivee: 'Arrivée enregistrée avec succès !',
+        depart: 'Départ enregistré avec succès !',
+        pause_entree: 'Début de pause enregistré !',
+        pause_sortie: 'Fin de pause enregistrée !'
+      };
+      
+      toast.success(messages[type]);
 
       // Recharger les données après un délai
       console.log('Rechargement des données...');
       setTimeout(() => {
         fetchData();
-      }, 1500);
+      }, 1000);
 
     } catch (error) {
       console.error('❌ Erreur pointage:', error);
@@ -260,7 +230,7 @@ export const PointagePage: React.FC = () => {
     
     switch (action) {
       case 'arrivee':
-        return false; // Déjà fait
+        return !todayPresence.heure_entree;
       case 'pause_entree':
         return todayPresence.heure_entree && !todayPresence.pause_entree;
       case 'pause_sortie':
