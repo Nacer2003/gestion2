@@ -118,7 +118,13 @@ export const EmployeDashboard: React.FC = () => {
     setPointageMessage('');
 
     try {
+      console.log('=== POINTAGE DASHBOARD ===');
+      console.log('Magasin:', magasin.nom);
+      console.log('Coordonnées magasin:', { lat: magasin.latitude, lng: magasin.longitude });
+
       const position = await getCurrentPosition();
+      console.log('Position utilisateur:', { lat: position.latitude, lng: position.longitude });
+
       const distance = calculateDistance(
         position.latitude,
         position.longitude,
@@ -127,14 +133,16 @@ export const EmployeDashboard: React.FC = () => {
       );
 
       const allowedRadius = getGpsRadius();
+      console.log('Distance:', distance, 'Rayon autorisé:', allowedRadius);
+
       if (distance > allowedRadius) {
-        setPointageMessage(`Vous êtes trop loin du magasin (${Math.round(distance)}m). Vous devez être dans un rayon de ${allowedRadius}m.`);
+        setPointageMessage(`❌ Vous êtes trop loin du magasin (${Math.round(distance)}m). Vous devez être dans un rayon de ${allowedRadius}m.`);
         return;
       }
 
       // Vérifier s'il y a déjà un pointage aujourd'hui
       if (todayPresence?.heure_entree) {
-        setPointageMessage('Vous avez déjà pointé aujourd\'hui.');
+        setPointageMessage('✅ Vous avez déjà pointé aujourd\'hui.');
         return;
       }
 
@@ -147,9 +155,10 @@ export const EmployeDashboard: React.FC = () => {
         type: 'arrivee'
       };
 
+      console.log('Envoi pointage:', pointageData);
       await attendanceService.createAttendance(pointageData);
 
-      setPointageMessage('Pointage enregistré avec succès !');
+      setPointageMessage('✅ Pointage enregistré avec succès !');
       
       // Mettre à jour la présence locale
       const newPresence: Presence = {
@@ -170,8 +179,19 @@ export const EmployeDashboard: React.FC = () => {
       
       setTodayPresence(newPresence);
 
-    } catch (error) {
-      setPointageMessage('Erreur lors du pointage. Vérifiez que la géolocalisation est activée.');
+    } catch (error: any) {
+      console.error('❌ Erreur pointage dashboard:', error);
+      let errorMessage = 'Erreur lors du pointage';
+      
+      if (error.message?.includes('Permission de géolocalisation refusée')) {
+        errorMessage = '🚫 Permission de géolocalisation refusée. Veuillez autoriser l\'accès à votre position.';
+      } else if (error.message?.includes('Position GPS non disponible')) {
+        errorMessage = '📡 Position GPS non disponible. Vérifiez que le GPS est activé.';
+      } else if (error.message?.includes('Délai d\'attente dépassé')) {
+        errorMessage = '⏱️ Délai d\'attente dépassé pour obtenir votre position GPS.';
+      }
+      
+      setPointageMessage(errorMessage);
     } finally {
       setPointageLoading(false);
     }
@@ -236,13 +256,13 @@ export const EmployeDashboard: React.FC = () => {
       {/* Section pointage */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Pointage</h2>
+          <h2 className="text-xl font-semibold text-gray-900">⏰ Pointage Rapide</h2>
           <Clock className="h-6 w-6 text-gray-400" />
         </div>
 
         {todayPresence?.heure_entree ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-green-800 font-medium">Pointage effectué aujourd'hui</p>
+            <p className="text-green-800 font-medium">✅ Pointage effectué aujourd'hui</p>
             <p className="text-green-600 text-sm">
               Arrivée: {todayPresence.heure_entree.toLocaleString('fr-FR')}
             </p>
@@ -251,12 +271,28 @@ export const EmployeDashboard: React.FC = () => {
                 Départ: {todayPresence.heure_sortie.toLocaleString('fr-FR')}
               </p>
             )}
+            <div className="mt-3">
+              <button
+                onClick={() => navigate('/employe/pointage')}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+              >
+                Gérer mes pointages
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-gray-600">
-              Vous pouvez pointer votre arrivée. Assurez-vous d'être dans un rayon de {getGpsRadius()}m du magasin.
+              📍 Vous pouvez pointer votre arrivée. Assurez-vous d'être dans un rayon de {getGpsRadius()}m du magasin.
             </p>
+            
+            {magasin && (
+              <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
+                <p><strong>📍 Magasin:</strong> {magasin.nom}</p>
+                <p><strong>🎯 Rayon autorisé:</strong> {getGpsRadius()}m</p>
+              </div>
+            )}
+
             <button
               onClick={handlePointage}
               disabled={pointageLoading || geoLoading}
@@ -265,16 +301,16 @@ export const EmployeDashboard: React.FC = () => {
               {pointageLoading || geoLoading ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Pointage en cours...
+                  {geoLoading ? 'Obtention position GPS...' : 'Pointage en cours...'}
                 </div>
               ) : (
-                'Pointer mon arrivée'
+                '✅ Pointer mon arrivée'
               )}
             </button>
 
             {pointageMessage && (
               <div className={`p-4 rounded-lg ${
-                pointageMessage.includes('succès') 
+                pointageMessage.includes('succès') || pointageMessage.includes('✅')
                   ? 'bg-green-50 text-green-800 border border-green-200' 
                   : 'bg-red-50 text-red-800 border border-red-200'
               }`}>
@@ -284,7 +320,8 @@ export const EmployeDashboard: React.FC = () => {
 
             {geoError && (
               <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-200">
-                {geoError}
+                <p className="font-medium">❌ Erreur de géolocalisation</p>
+                <p className="text-sm">{geoError}</p>
               </div>
             )}
           </div>
@@ -293,14 +330,14 @@ export const EmployeDashboard: React.FC = () => {
 
       {/* Actions rapides */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Actions rapides</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">🚀 Actions rapides</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button 
             onClick={() => navigate('/employe/stock')}
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors duration-200"
           >
             <Package className="h-6 w-6 text-blue-600 mb-2" />
-            <h3 className="font-medium text-gray-900">Consulter le stock</h3>
+            <h3 className="font-medium text-gray-900">📦 Consulter le stock</h3>
             <p className="text-sm text-gray-600">Voir les produits disponibles</p>
           </button>
           <button 
@@ -308,8 +345,8 @@ export const EmployeDashboard: React.FC = () => {
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors duration-200"
           >
             <Clock className="h-6 w-6 text-green-600 mb-2" />
-            <h3 className="font-medium text-gray-900">Gérer le pointage</h3>
-            <p className="text-sm text-gray-600">Pointer votre présence</p>
+            <h3 className="font-medium text-gray-900">⏰ Gérer le pointage</h3>
+            <p className="text-sm text-gray-600">Pointer votre présence complète</p>
           </button>
         </div>
       </div>
