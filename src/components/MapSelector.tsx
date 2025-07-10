@@ -75,27 +75,19 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
       return;
     }
 
-    console.log('=== DEMANDE GÉOLOCALISATION PRÉCISE ===');
+    console.log('=== DEMANDE GÉOLOCALISATION ===');
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         
-        console.log('✅ Position GPS PRÉCISE obtenue:', { 
+        console.log('✅ Position GPS obtenue:', { 
           lat, 
           lng, 
           accuracy: position.coords.accuracy,
-          timestamp: new Date(position.timestamp).toLocaleString(),
-          altitude: position.coords.altitude,
-          heading: position.coords.heading,
-          speed: position.coords.speed
+          timestamp: new Date(position.timestamp).toLocaleString()
         });
-        
-        // Vérifier la précision
-        if (position.coords.accuracy > 100) {
-          console.warn('⚠️ Précision GPS faible:', position.coords.accuracy, 'mètres');
-        }
         
         setMapPosition([lat, lng]);
         onPositionChange(lat, lng);
@@ -116,31 +108,27 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
         setIsGettingLocation(false);
       },
       (error) => {
-        console.error('❌ Erreur géolocalisation DÉTAILLÉE:', {
-          code: error.code,
-          message: error.message,
-          timestamp: new Date().toLocaleString()
-        });
-        
+        console.error('❌ Erreur géolocalisation:', error);
+        console.error('Erreur géolocalisation:', error);
         let errorMessage = 'Erreur de géolocalisation';
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = 'Permission de géolocalisation refusée. Veuillez autoriser l\'accès à votre position dans les paramètres du navigateur.';
+            errorMessage = 'Permission de géolocalisation refusée';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Position GPS non disponible. Vérifiez que le GPS est activé sur votre appareil.';
+            errorMessage = 'Position non disponible';
             break;
           case error.TIMEOUT:
-            errorMessage = 'Délai d\'attente dépassé pour obtenir votre position GPS. Réessayez.';
+            errorMessage = 'Délai d\'attente dépassé';
             break;
         }
         alert(errorMessage);
         setIsGettingLocation(false);
       },
       {
-        enableHighAccuracy: true,    // Utiliser le GPS haute précision
-        timeout: 30000,              // Augmenter le timeout à 30 secondes
-        maximumAge: 0                // Ne pas utiliser de cache
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0
       }
     );
   };
@@ -157,7 +145,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
         >
           <MapPin className="h-4 w-4" />
           <span>
-            {isGettingLocation ? 'Localisation précise en cours...' : 'Utiliser ma position actuelle'}
+            {isGettingLocation ? 'Localisation en cours...' : 'Utiliser ma position actuelle'}
           </span>
         </button>
       </div>
@@ -166,7 +154,7 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
       <div className="h-64 w-full rounded-lg overflow-hidden border border-gray-300">
         <MapContainer
           center={mapPosition}
-          zoom={15}
+          zoom={13}
           style={{ height: '100%', width: '100%' }}
           key={`${mapPosition[0]}-${mapPosition[1]}`}
         >
@@ -184,15 +172,9 @@ export const MapSelector: React.FC<MapSelectorProps> = ({
         </MapContainer>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-800 mb-2">💡 Conseils pour une localisation précise</h4>
-        <ul className="text-xs text-blue-700 space-y-1">
-          <li>• Activez le GPS sur votre appareil</li>
-          <li>• Autorisez la géolocalisation dans votre navigateur</li>
-          <li>• Sortez à l'extérieur pour une meilleure réception GPS</li>
-          <li>• Attendez quelques secondes pour une position précise</li>
-        </ul>
-      </div>
+      <p className="text-xs text-gray-500">
+        💡 Astuce: Cliquez sur "Utiliser ma position actuelle" pour utiliser votre GPS, ou cliquez directement sur la carte pour définir la position manuellement.
+      </p>
     </div>
   );
 };

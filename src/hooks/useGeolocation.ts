@@ -3,7 +3,6 @@ import { useState, useCallback } from 'react';
 interface Position {
   latitude: number;
   longitude: number;
-  accuracy?: number;
 }
 
 export const useGeolocation = () => {
@@ -14,7 +13,7 @@ export const useGeolocation = () => {
     setLoading(true);
     setError(null);
 
-    console.log('=== HOOK: Demande géolocalisation HAUTE PRÉCISION ===');
+    console.log('=== HOOK: Demande géolocalisation ===');
     
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -26,88 +25,52 @@ export const useGeolocation = () => {
         return;
       }
 
-      // Fonction pour essayer d'obtenir la position avec différents niveaux de précision
-      const tryGetPosition = (highAccuracy: boolean, timeout: number) => {
-        return new Promise<Position>((resolvePos, rejectPos) => {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              console.log(`✅ HOOK: Position GPS obtenue (highAccuracy: ${highAccuracy}):`, {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-                timestamp: new Date(position.timestamp).toLocaleString(),
-                altitude: position.coords.altitude,
-                heading: position.coords.heading,
-                speed: position.coords.speed
-              });
-              
-              resolvePos({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy
-              });
-            },
-            (error) => {
-              console.error(`❌ HOOK: Erreur géolocalisation (highAccuracy: ${highAccuracy}):`, {
-                code: error.code,
-                message: error.message,
-                timestamp: new Date().toLocaleString()
-              });
-              rejectPos(error);
-            },
-            {
-              enableHighAccuracy: highAccuracy,
-              timeout: timeout,
-              maximumAge: 0
-            }
-          );
-        });
-      };
-
-      // Essayer d'abord avec haute précision, puis fallback
-      tryGetPosition(true, 30000)
-        .then((position) => {
-          setLoading(false);
-          resolve(position);
-        })
-        .catch((error) => {
-          console.log('⚠️ Tentative avec précision normale...');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log('✅ HOOK: Position GPS obtenue:', {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: new Date(position.timestamp).toLocaleString()
+          });
           
-          // Fallback avec précision normale
-          tryGetPosition(false, 15000)
-            .then((position) => {
-              console.log('✅ Position obtenue avec précision normale');
-              setLoading(false);
-              resolve(position);
-            })
-            .catch((fallbackError) => {
-              console.error('❌ HOOK: Toutes les tentatives ont échoué');
-              setLoading(false);
-              
-              let errorMsg = 'Erreur de géolocalisation';
-              switch (fallbackError.code) {
-                case fallbackError.PERMISSION_DENIED:
-                  errorMsg = 'Permission de géolocalisation refusée. Veuillez autoriser l\'accès à votre position.';
-                  break;
-                case fallbackError.POSITION_UNAVAILABLE:
-                  errorMsg = 'Position GPS non disponible. Vérifiez que le GPS est activé.';
-                  break;
-                case fallbackError.TIMEOUT:
-                  errorMsg = 'Délai d\'attente dépassé. Vérifiez votre connexion GPS.';
-                  break;
-              }
-              
-              setError(errorMsg);
-              reject(new Error(errorMsg));
-            });
-        });
+          setLoading(false);
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error('❌ HOOK: Erreur géolocalisation:', error);
+          setLoading(false);
+          let errorMsg = 'Erreur de géolocalisation';
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMsg = 'Permission de géolocalisation refusée';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMsg = 'Position non disponible';
+              break;
+            case error.TIMEOUT:
+              errorMsg = 'Délai d\'attente dépassé pour la géolocalisation';
+              break;
+          }
+          
+          setError(errorMsg);
+          reject(new Error(errorMsg));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0
+        }
+      );
     });
   }, []);
 
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    console.log('=== CALCUL DISTANCE PRÉCIS ===');
-    console.log('Position utilisateur:', { lat: lat1, lng: lon1 });
-    console.log('Position magasin:', { lat: lat2, lng: lon2 });
+    console.log('Calcul distance entre:', { lat1, lon1 }, 'et', { lat2, lon2 });
     
     const R = 6371e3; // Rayon de la Terre en mètres
     const φ1 = lat1 * Math.PI / 180;
@@ -121,7 +84,7 @@ export const useGeolocation = () => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     const distance = R * c;
-    console.log('✅ Distance calculée:', Math.round(distance), 'mètres');
+    console.log('Distance calculée:', Math.round(distance), 'mètres');
     
     return distance;
   }, []);
